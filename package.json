@@ -2,12 +2,17 @@
   "name": "cronometro-debate-ada",
   "version": "1.0.0",
   "description": "Cronómetro web profesional para debates de la Asociación de Debate de Alicante (ADA)",
+  "type": "module",
   "main": "index.html",
   "scripts": {
     "dev": "vite",
+    "start": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "vite"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "check": "npm run lint && npm run test"
   },
   "keywords": [
     "debate",
@@ -21,9 +26,14 @@
   "author": "Asociación de Debate de Alicante (ADA)",
   "license": "MIT",
   "engines": {
-    "node": ">=14.0.0"
+    "node": "^20.19.0 || >=22.12.0"
   },
   "devDependencies": {
-    "vite": "^7.3.1"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.10.0",
+    "globals": "^17.12.0",
+    "jsdom": "^29.1.1",
+    "vite": "^7.3.1",
+    "vitest": "^5.0.0"
   }
 }

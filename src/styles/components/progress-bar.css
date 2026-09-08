@@ -53,3 +53,23 @@
 .progress-fill.danger {
   background: var(--progress-danger);
 }
+
+/* Seek tooltip (created by ProgressBar) */
+.progress-tooltip {
+  position: fixed;
+  transform: translateX(-50%);
+  background: rgba(44, 62, 80, 0.9);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.progress-tooltip.visible {
+  opacity: 1;
+}

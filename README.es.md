@@ -87,10 +87,50 @@ El cronómetro se sincroniza con marcas de tiempo del reloj real en lugar de dep
 src/
 |-- components/     # Cronómetro, controles, fases, configuración y tema
 |-- core/           # Motor, gestor de fases, configuración y bus de eventos
-|-- formats/        # Generadores de fases Académico y British Parliament
+|-- formats/        # Módulos de formato autodescriptivos + FormatRegistry
 |-- services/       # Almacenamiento, atajos de teclado y preferencia de tema
 |-- styles/         # Tokens de diseño, layout, componentes y responsive
 `-- main.js         # Composición de la aplicación y conexión de eventos
+tests/              # Tests unitarios con Vitest y un test de integración en jsdom
+```
+
+## Añadir un Formato de Debate
+
+Los formatos son módulos autodescriptivos registrados en `src/formats/FormatRegistry.js`. El formulario de configuración, el selector de formato, el atajo de teclado y el panel de ayuda se generan a partir del registro, así que añadir un formato nunca modifica los componentes existentes.
+
+1. Crea `src/formats/MiFormato.js` exportando un objeto con este contrato:
+
+```js
+export default {
+  id: 'miformato',           // clave de configuración y data-format
+  label: 'Mi Formato',       // se muestra en el selector y en la ayuda
+  shortcut: '3',             // atajo de teclado opcional (debe ser único)
+  defaults: { speechTime: 300, equipoA: 'Equipo A' },
+  fields: [                  // genera la sección de configuración
+    { key: 'speechTime', label: 'Discurso (seg)', type: 'number', step: 30, min: 0 },
+    { key: 'equipoA', label: 'Equipo A', type: 'text', placeholder: 'Ej: Equipo A' },
+    // también existe type: 'checkbox'; `showWhen: '<claveCheckbox>'` hace un campo condicional
+  ],
+  generatePhases(cfg) {      // recibe la configuración ya validada de este formato
+    return [{ name: `Apertura (${cfg.equipoA})`, duration: cfg.speechTime }];
+  },
+};
+```
+
+2. Regístralo al final de `src/formats/FormatRegistry.js`:
+
+```js
+formatRegistry.register(MiFormato);
+```
+
+Las fases de deliberación y feedback se añaden automáticamente después de las fases del formato. Los valores se validan contra `fields` al cargar desde `localStorage` y al aplicar el formulario, de modo que `generatePhases` siempre recibe números y booleanos del tipo correcto.
+
+## Comprobaciones de Calidad
+
+```bash
+npm run lint   # ESLint (flat config)
+npm test       # Vitest: tests unitarios + test de integración en jsdom
+npm run check  # ambos
 ```
 
 ## Controles de Teclado

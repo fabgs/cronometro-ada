@@ -21,6 +21,16 @@
   text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
 }
 
+.keyboard-help-indicator-title {
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.keyboard-help-indicator-sub {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
 #keyboard-help-indicator:hover {
   background: var(--overlay-bg);
   transform: translateY(-2px);

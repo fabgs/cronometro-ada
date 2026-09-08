@@ -1,11 +1,6 @@
-import Component from './Component.js';
+import { Drawer } from './Drawer.js';
 import timer from '../core/Timer.js';
 import phaseManager from '../core/PhaseManager.js';
-
-/**
- * PhaseList — right-side panel showing all phases with SVG status icons,
- * click-to-jump, and header with current phase counter.
- */
 
 const SVG_ICONS = {
   completed: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -21,148 +16,66 @@ const SVG_ICONS = {
     <circle cx="10" cy="10" r="2.5" fill="currentColor" fill-opacity="0.2"/>
   </svg>`,
 };
-export class PhaseList extends Component {
-  constructor(container) {
-    super(container);
-    this._visible = false;
-    this._lastPhaseText = '';
-    this._lastCounterText = '';
-  }
 
-  mount() {
-    this._listEl = document.querySelector('#phases-list');
-    this._phaseDisplay = document.querySelector('#current-phase-display');
-    this._counterDisplay = document.querySelector('#phase-counter-display');
-    this._phasesBtn = document.querySelector('#phases-btn');
-    this._phasesPanel = document.querySelector('#phases-panel');
-    this._closeBtn = document.querySelector('#phases-close');
-    this._backdrop = document.querySelector('#phases-backdrop');
-    this.bindEvents();
-  }
-
-  bindEvents() {
-    this.listen('phase:changed', () => this._rebuild());
-    this.listen('timer:start', () => this._rebuild());
-    this.listen('timer:pause', () => this._rebuild());
-    this.listen('timer:reset', () => this._rebuild());
-    this.listen('debate:reset', () => this._rebuild());
-    this.listen('debate:ended', () => this._rebuild());
-    this.listen('timer:tick', () => this._updateHeader());
-
-    // Delegated click on phase items
-    if (this._listEl) {
-      this._listEl.addEventListener('click', (e) => {
-        const item = e.target.closest('.phase-item.clickable');
-        if (!item) return;
-        const idx = Number(item.dataset.index);
-        if (!Number.isNaN(idx)) phaseManager.jumpToPhase(idx);
-      });
-    }
-
-    // Toggle phases panel
-    if (this._phasesBtn) {
-      this._phasesBtn.addEventListener('click', () => this._togglePanel());
-    }
-
-    // Close via X button
-    if (this._closeBtn) {
-      this._closeBtn.addEventListener('click', () => this._hidePanel());
-    }
-
-    // Close via backdrop click
-    if (this._backdrop) {
-      this._backdrop.addEventListener('click', () => this._hidePanel());
-    }
-
-    this.listen('keyboard:action', ({ action }) => {
-      if (action === 'togglePhases') this._togglePanel();
-      if (action === 'closePanels') this._hidePanel();
+/**
+ * PhaseList — right drawer listing every phase with status icons and
+ * click-to-jump (disabled while the timer runs).
+ */
+export class PhaseList extends Drawer {
+  constructor() {
+    super({
+      panel: '#phases-panel',
+      toggleBtn: '#phases-btn',
+      closeBtn: '#phases-close',
+      backdrop: '#phases-backdrop',
+      toggleAction: 'togglePhases',
     });
   }
 
-  _togglePanel() {
-    if (this._visible) this._hidePanel();
-    else this._showPanel();
-  }
+  mount() {
+    super.mount();
+    this._listEl = document.querySelector('#phases-list');
 
-  _showPanel() {
-    if (!this._phasesPanel) return;
-    this._visible = true;
-    this._phasesPanel.classList.add('open');
-    if (this._backdrop) this._backdrop.classList.add('active');
-    document.body.style.overflow = 'hidden';
-  }
+    for (const ev of ['phase:changed', 'timer:start', 'timer:pause', 'timer:reset', 'debate:reset']) {
+      this.listen(ev, () => this._rebuild());
+    }
 
-  _hidePanel() {
-    if (!this._phasesPanel) return;
-    this._visible = false;
-    this._phasesPanel.classList.remove('open');
-    if (this._backdrop) this._backdrop.classList.remove('active');
-    document.body.style.overflow = '';
+    this.bindDom(this._listEl, 'click', (e) => {
+      const item = e.target.closest('.phase-item.clickable');
+      if (!item) return;
+      const idx = Number(item.dataset.index);
+      if (!Number.isNaN(idx)) phaseManager.jumpToPhase(idx);
+    });
   }
 
   /* ── private ──────────────────────────────────────────── */
 
   _rebuild() {
-    this._updateHeader();
     if (!this._listEl) return;
 
-    this._listEl.innerHTML = '';
-    const phases = phaseManager.phases;
     const idx = phaseManager.currentIndex;
+    const clickable = !timer.isRunning;
     const fragment = document.createDocumentFragment();
 
-    phases.forEach((phase, i) => {
+    phaseManager.phases.forEach((phase, i) => {
+      const status = i < idx ? 'completed' : i === idx ? 'current' : 'pending';
+
       const item = document.createElement('div');
-      item.className = 'phase-item';
-
-      let icon;
-      if (i < idx) {
-        item.classList.add('completed');
-        icon = SVG_ICONS.completed;
-      } else if (i === idx) {
-        item.classList.add('current');
-        icon = SVG_ICONS.current;
-      } else {
-        item.classList.add('pending');
-        icon = SVG_ICONS.pending;
-      }
-
-      if (!timer.isRunning) {
-        item.classList.add('clickable');
-      }
+      item.className = `phase-item ${status}${clickable ? ' clickable' : ''}`;
       item.dataset.index = i;
 
-      item.innerHTML = `
-        <span class="phase-name">${phase.name}</span>
-        <span class="phase-status">${icon}</span>
-      `;
+      const name = document.createElement('span');
+      name.className = 'phase-name';
+      name.textContent = phase.name; // user-provided team names: never innerHTML
+
+      const icon = document.createElement('span');
+      icon.className = 'phase-status';
+      icon.innerHTML = SVG_ICONS[status];
+
+      item.append(name, icon);
       fragment.appendChild(item);
     });
-    this._listEl.appendChild(fragment);
-  }
 
-  _updateHeader() {
-    if (!this._phaseDisplay || !this._counterDisplay) return;
-    const phases = phaseManager.phases;
-    let phaseText, counterText;
-    if (phases.length === 0) {
-      phaseText = 'Configura el formato de debate';
-      counterText = '0 / 0';
-    } else {
-      const cur = phaseManager.currentPhase;
-      phaseText = cur ? cur.name : 'Listo para comenzar';
-      counterText = `${phaseManager.currentIndex + 1} / ${phases.length}`;
-    }
-    if (phaseText !== this._lastPhaseText) {
-      this._lastPhaseText = phaseText;
-      this._phaseDisplay.textContent = phaseText;
-    }
-    if (counterText !== this._lastCounterText) {
-      this._lastCounterText = counterText;
-      this._counterDisplay.textContent = counterText;
-    }
+    this._listEl.replaceChildren(fragment);
   }
 }
-
-

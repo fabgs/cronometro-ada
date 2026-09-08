@@ -2,38 +2,36 @@ import eventBus from '../core/EventBus.js';
 import storageService from './StorageService.js';
 import { STORAGE_KEYS } from '../core/defaults.js';
 
+const THEMES = ['light', 'dark'];
+
 /**
  * ThemeService — manages dark/light theme toggling and persistence.
+ *
+ * Precedence: explicit user choice (persisted) → OS preference → light.
  */
 export class ThemeService {
   constructor() {
     this._theme = 'light';
+    this._media = null;
+    this._onMediaChange = (e) => {
+      // Only follow the OS while the user has not chosen explicitly.
+      if (!this._savedTheme()) this.setTheme(e.matches ? 'dark' : 'light');
+    };
   }
 
-  /**
-   * Initialise theme from stored preference or system setting.
-   */
   init() {
-    const saved = storageService.get(STORAGE_KEYS.theme);
-    // storageService returns parsed JSON; the legacy code stores a plain string
-    // via localStorage.setItem, so we also handle raw strings.
-    const raw = saved ?? localStorage.getItem(STORAGE_KEYS.theme);
-    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    if (raw) {
-      this.setTheme(raw);
-    } else if (systemDark) {
-      this.setTheme('dark');
+    this._media = window.matchMedia('(prefers-color-scheme: dark)');
+    const saved = this._savedTheme();
+    if (saved) {
+      this.setTheme(saved);
     } else {
-      this.setTheme('light');
+      this.setTheme(this._media.matches ? 'dark' : 'light');
     }
+    this._media.addEventListener('change', this._onMediaChange);
+  }
 
-    // React to OS-level changes when the user hasn't explicitly chosen.
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-      if (!localStorage.getItem(STORAGE_KEYS.theme)) {
-        this.setTheme(e.matches ? 'dark' : 'light');
-      }
-    });
+  destroy() {
+    if (this._media) this._media.removeEventListener('change', this._onMediaChange);
   }
 
   get current() {
@@ -43,13 +41,20 @@ export class ThemeService {
   toggle() {
     const next = this._theme === 'dark' ? 'light' : 'dark';
     this.setTheme(next);
-    localStorage.setItem(STORAGE_KEYS.theme, next);
+    storageService.set(STORAGE_KEYS.theme, next);
   }
 
   setTheme(theme) {
     this._theme = theme;
     document.documentElement.setAttribute('data-theme', theme);
     eventBus.emit('theme:changed', { theme });
+  }
+
+  /* ── private ──────────────────────────────────────────── */
+
+  _savedTheme() {
+    const value = storageService.get(STORAGE_KEYS.theme);
+    return THEMES.includes(value) ? value : null;
   }
 }
 

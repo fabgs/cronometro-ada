@@ -1,8 +1,15 @@
 import eventBus from './EventBus.js';
 import storageService from '../services/StorageService.js';
+import formatRegistry from '../formats/FormatRegistry.js';
 import {
-  ACADEMIC_DEFAULTS,
-  BP_DEFAULTS,
+  COMMON_SECTIONS,
+  coerceFieldValue,
+  fieldPath,
+  formatSection,
+  getPath,
+  setPath,
+} from './configSchema.js';
+import {
   COMMON_DEFAULTS,
   DEFAULT_FORMAT,
   STORAGE_KEYS,
@@ -10,15 +17,27 @@ import {
 } from './defaults.js';
 
 /**
- * ConfigManager — reads / writes the debate configuration.
+ * ConfigManager — reads, validates and persists the debate configuration.
  *
- * The internal state mirrors the shape persisted in localStorage under the
- * key `ada-debate-config` so that configs saved by the legacy version are
- * loaded without migration.
+ * The config shape is derived from the FormatRegistry and the common schema:
+ *
+ *   {
+ *     currentFormat: 'academico',
+ *     keyboardControlsEnabled: true,
+ *     deliberacion: { time, description },
+ *     feedback: { time, description },
+ *     <formatId>: { ...format.defaults },   // one entry per registered format
+ *   }
+ *
+ * It mirrors what is persisted in localStorage under `ada-debate-config`, so
+ * configs saved by earlier versions load without migration. Every value is
+ * coerced to its field type on load and on apply, so consumers always receive
+ * numbers as numbers and booleans as booleans.
  */
 export class ConfigManager {
   constructor() {
-    this._config = this._buildDefaults();
+    this._defaults = this._buildDefaults();
+    this._config = structuredClone(this._defaults);
   }
 
   /* ── public getters ─────────────────────────────────── */
@@ -28,20 +47,21 @@ export class ConfigManager {
   }
 
   getAll() {
-    return { ...this._config };
+    return structuredClone(this._config);
   }
 
-  getFormatConfig(format) {
-    if (format === 'academico') return { ...this._config.academico };
-    if (format === 'bp') return { ...this._config.bp };
-    return null;
+  /** Config block for a format id, or null if unknown. */
+  getFormatConfig(formatId) {
+    if (!formatRegistry.has(formatId)) return null;
+    return { ...this._config[formatId] };
   }
 
   getCommon() {
-    return {
-      deliberacion: { ...this._config.deliberacion },
-      feedback: { ...this._config.feedback },
-    };
+    const out = {};
+    for (const group of Object.keys(COMMON_DEFAULTS)) {
+      out[group] = { ...this._config[group] };
+    }
+    return out;
   }
 
   getCurrentFormat() {
@@ -52,15 +72,30 @@ export class ConfigManager {
     return this._config.keyboardControlsEnabled;
   }
 
+  /** Every configurable field with its dotted path (used by the UI). */
+  sections() {
+    return [...formatRegistry.list().map(formatSection), ...COMMON_SECTIONS];
+  }
+
   /* ── mutation ─────────────────────────────────────────── */
 
-  set(key, value) {
-    this._config[key] = value;
+  /**
+   * Switch the active format. Persists immediately and emits `format:changed`.
+   * @returns {boolean} true if the format changed
+   */
+  setCurrentFormat(formatId) {
+    if (!formatRegistry.has(formatId) || formatId === this._config.currentFormat) {
+      return false;
+    }
+    this._config.currentFormat = formatId;
+    this.save();
+    eventBus.emit('format:changed', { format: formatId });
+    return true;
   }
 
   /**
-   * Bulk-apply a partial config object coming from the UI.
-   * After calling this, `save()` and emit `config:applied`.
+   * Bulk-apply a partial config object coming from the UI (raw input values
+   * are accepted and coerced). Persists and emits `config:applied`.
    */
   apply(partial) {
     this._merge(partial);
@@ -76,13 +111,13 @@ export class ConfigManager {
 
   load() {
     const saved = storageService.get(STORAGE_KEYS.config);
-    if (saved) {
+    if (saved && typeof saved === 'object') {
       this._merge(saved);
     }
   }
 
   reset() {
-    this._config = this._buildDefaults();
+    this._config = structuredClone(this._defaults);
     storageService.remove(STORAGE_KEYS.config);
     eventBus.emit('config:reset', {});
   }
@@ -90,38 +125,30 @@ export class ConfigManager {
   /* ── private ──────────────────────────────────────────── */
 
   _buildDefaults() {
-    return {
+    const cfg = {
       currentFormat: DEFAULT_FORMAT,
       keyboardControlsEnabled: defaultKeyboardEnabled(),
-      academico: { ...ACADEMIC_DEFAULTS },
-      bp: { ...BP_DEFAULTS },
-      deliberacion: {
-        time: COMMON_DEFAULTS.deliberacionTime,
-        description: COMMON_DEFAULTS.deliberacionDesc,
-      },
-      feedback: {
-        time: COMMON_DEFAULTS.feedbackTime,
-        description: COMMON_DEFAULTS.feedbackDesc,
-      },
+      ...structuredClone(COMMON_DEFAULTS),
     };
+    for (const fmt of formatRegistry.list()) {
+      cfg[fmt.id] = { ...fmt.defaults };
+    }
+    return cfg;
   }
 
+  /** Merge a (possibly partial, possibly untyped) source into the config. */
   _merge(source) {
-    if (source.currentFormat) this._config.currentFormat = source.currentFormat;
-    if (source.keyboardControlsEnabled !== undefined) {
-      this._config.keyboardControlsEnabled = source.keyboardControlsEnabled;
+    if (formatRegistry.has(source.currentFormat)) {
+      this._config.currentFormat = source.currentFormat;
     }
-    if (source.academico) {
-      Object.assign(this._config.academico, source.academico);
-    }
-    if (source.bp) {
-      Object.assign(this._config.bp, source.bp);
-    }
-    if (source.deliberacion) {
-      Object.assign(this._config.deliberacion, source.deliberacion);
-    }
-    if (source.feedback) {
-      Object.assign(this._config.feedback, source.feedback);
+    for (const section of this.sections()) {
+      for (const field of section.fields) {
+        const path = fieldPath(field);
+        const raw = getPath(source, path);
+        if (raw === undefined) continue;
+        const fallback = getPath(this._defaults, path);
+        setPath(this._config, path, coerceFieldValue(field, raw, fallback));
+      }
     }
   }
 }

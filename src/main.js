@@ -24,6 +24,7 @@ import phaseManager from './core/PhaseManager.js';
 
 // --- Formats ---
 import formatRegistry from './formats/FormatRegistry.js';
+import { buildCommonPhases } from './formats/commonPhases.js';
 
 // --- Services ---
 import themeService from './services/ThemeService.js';
@@ -47,7 +48,7 @@ class App {
   }
 
   init() {
-    // 1. Load saved config
+    // 1. Load saved config (validated against the registered formats)
     configManager.load();
 
     // 2. Init services
@@ -65,45 +66,42 @@ class App {
       new DarkModeToggle(),
       new KeyboardHelp(),
     ];
-
     this.components.forEach((c) => c.mount());
 
-    // 4. Wire format changes → regenerate phases
-    eventBus.on('format:changed', ({ format }) => {
-      this._loadFormat(format);
-    });
+    // 4. Any config change regenerates the phase list
+    this._unsubs = [
+      eventBus.on('format:changed', () => this._loadPhases()),
+      eventBus.on('config:applied', () => this._loadPhases()),
+      eventBus.on('config:reset', () => this._loadPhases()),
+    ];
 
-    eventBus.on('config:applied', () => {
-      this._loadFormat(configManager.getCurrentFormat());
-    });
-
-    eventBus.on('config:reset', () => {
-      this._loadFormat(configManager.getCurrentFormat());
-    });
-
-    // 5. Initial format load
-    this._loadFormat(configManager.getCurrentFormat());
+    // 5. Initial load
+    this._loadPhases();
 
     console.log('[ADA] Cronómetro de Debate iniciado ✓');
   }
 
-  _loadFormat(formatName) {
-    const fmt = formatRegistry.get(formatName);
-    if (!fmt) {
-      console.error(`[ADA] Formato desconocido: ${formatName}`);
+  /** Build the phase list for the current format + common phases. */
+  _loadPhases() {
+    const formatId = configManager.getCurrentFormat();
+    const format = formatRegistry.get(formatId);
+    if (!format) {
+      console.error(`[ADA] Formato desconocido: ${formatId}`);
       return;
     }
 
-    const config = configManager.getFormatConfig(formatName);
-    const common = configManager.getCommon();
-    const phases = fmt.generatePhases({ ...config, ...common });
-
+    const phases = [
+      ...format.generatePhases(configManager.getFormatConfig(formatId)),
+      ...buildCommonPhases(configManager.getCommon()),
+    ];
     phaseManager.setPhases(phases);
   }
 
   destroy() {
     this.components.forEach((c) => c.destroy());
+    this._unsubs?.forEach((fn) => fn());
     keyboardService.destroy();
+    themeService.destroy();
     eventBus.clear();
   }
 }
