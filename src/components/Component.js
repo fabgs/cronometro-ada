@@ -3,54 +3,45 @@ import eventBus from '../core/EventBus.js';
 /**
  * Component — base class for UI components.
  *
- * Lifecycle: constructor → mount → bindEvents → (update)* → destroy
+ * Components attach behaviour to markup that already exists in index.html
+ * (or that they create themselves in `mount`). The base class tracks every
+ * EventBus subscription and DOM listener so `destroy()` can undo all of them.
+ *
+ * Lifecycle: constructor → mount() → destroy()
  */
 class Component {
-  /**
-   * @param {HTMLElement|string} container - DOM element or CSS selector
-   */
-  constructor(container) {
-    this.container =
-      typeof container === 'string'
-        ? document.querySelector(container)
-        : container;
-    /** @type {Function[]} unsub callbacks */
+  constructor() {
+    /** @type {Function[]} EventBus unsubscribe callbacks */
     this._unsubs = [];
+    /** @type {Array<{target: EventTarget, type: string, handler: Function, options: *}>} */
+    this._domBindings = [];
   }
 
-  /**
-   * Subscribe to EventBus and track for automatic cleanup.
-   */
+  /** Subscribe to the EventBus; automatically removed on destroy. */
   listen(event, callback) {
     const unsub = eventBus.on(event, callback);
     this._unsubs.push(unsub);
     return unsub;
   }
 
-  /** Override in subclass — return HTML string. */
-  render() {
-    return '';
+  /** Add a DOM listener; automatically removed on destroy. Ignores null targets. */
+  bindDom(target, type, handler, options) {
+    if (!target) return;
+    target.addEventListener(type, handler, options);
+    this._domBindings.push({ target, type, handler, options });
   }
 
-  /** Insert rendered content into the container. */
-  mount() {
-    if (this.container) {
-      this.container.innerHTML = this.render();
-    }
-    this.bindEvents();
-  }
+  /** Override — query DOM nodes and bind listeners. */
+  mount() {}
 
-  /** Override — bind DOM event listeners after mount. */
-  bindEvents() {}
-
-  /** Override — update DOM with new data. */
-  update(data) {} // eslint-disable-line no-unused-vars
-
-  /** Clean up EventBus subscriptions and DOM. */
+  /** Remove all EventBus subscriptions and DOM listeners. */
   destroy() {
     this._unsubs.forEach((fn) => fn());
     this._unsubs = [];
-    if (this.container) this.container.innerHTML = '';
+    this._domBindings.forEach(({ target, type, handler, options }) => {
+      target.removeEventListener(type, handler, options);
+    });
+    this._domBindings = [];
   }
 }
 

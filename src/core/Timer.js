@@ -1,9 +1,23 @@
 import eventBus from './EventBus.js';
-import { TIMER_THRESHOLDS, MIN_NEGATIVE_TIME } from './defaults.js';
+import { MIN_NEGATIVE_TIME } from './defaults.js';
+
+/**
+ * How often the wall clock is sampled while running. The displayed second
+ * only changes when the integer value changes, so sampling several times per
+ * second means a delayed callback (busy main thread, GC pause) still catches
+ * every second instead of jumping e.g. from 40 to 38.
+ */
+export const SAMPLE_INTERVAL_MS = 200;
 
 /**
  * Timer — core countdown engine with wall-clock sync.
  * Does NOT touch the DOM; communicates exclusively via EventBus.
+ *
+ * Events: timer:tick {currentTime, totalTime, isRunning, isPaused},
+ *         timer:start, timer:pause, timer:resume, timer:reset.
+ * `timer:tick` is emitted once per second change (plus on load/reset/seek).
+ * Warning levels are derived by consumers from `currentTime`
+ * (see core/time.js → getWarningLevel).
  */
 export class Timer {
   constructor() {
@@ -13,7 +27,12 @@ export class Timer {
     this._isPaused = false;
     this._interval = null;
     this._startTimestamp = null;
-    this._lastWarningLevel = null;
+    // Re-sample immediately when the tab becomes visible again: browsers
+    // throttle timers in background tabs, so the first visible frame would
+    // otherwise show a stale value for up to one sample interval.
+    this._onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && this._isRunning) this._sample();
+    };
   }
 
   /* ── getters ──────────────────────────────────────────── */
@@ -37,17 +56,12 @@ export class Timer {
   /* ── public API ───────────────────────────────────────── */
 
   /**
-   * Load a new duration (when switching phases).
-   * Resets all timer state.
+   * Load a new duration (when switching phases). Resets all timer state.
    */
   load(duration) {
     this._stop();
     this._currentTime = duration;
     this._totalTime = duration;
-    this._isRunning = false;
-    this._isPaused = false;
-    this._startTimestamp = null;
-    this._lastWarningLevel = null;
     eventBus.emit('timer:tick', this._tickData());
   }
 
@@ -61,30 +75,23 @@ export class Timer {
       this._currentTime = this._totalTime;
     }
 
-    // Compute the wall-clock origin
-    const elapsed = this._totalTime - this._currentTime;
-    this._startTimestamp = Date.now() - elapsed * 1000;
-
-    this._startInterval();
+    this._syncOrigin();
+    this._startSampling();
     eventBus.emit('timer:start', {});
   }
 
+  /** Toggles between running and paused. */
   pause() {
     if (this._isRunning && !this._isPaused) {
-      // Running → Paused
       this._isPaused = true;
       this._isRunning = false;
-      this._clearInterval();
+      this._stopSampling();
       eventBus.emit('timer:pause', {});
     } else if (this._isPaused) {
-      // Paused → Resume
       this._isPaused = false;
       this._isRunning = true;
-
-      const elapsed = this._totalTime - this._currentTime;
-      this._startTimestamp = Date.now() - elapsed * 1000;
-
-      this._startInterval();
+      this._syncOrigin();
+      this._startSampling();
       eventBus.emit('timer:resume', {});
     }
   }
@@ -92,10 +99,6 @@ export class Timer {
   reset() {
     this._stop();
     this._currentTime = this._totalTime;
-    this._isRunning = false;
-    this._isPaused = false;
-    this._startTimestamp = null;
-    this._lastWarningLevel = null;
     eventBus.emit('timer:reset', {});
     eventBus.emit('timer:tick', this._tickData());
   }
@@ -105,66 +108,61 @@ export class Timer {
    */
   seekTo(time) {
     this._currentTime = time;
-
-    if (this._isRunning && !this._isPaused && this._startTimestamp) {
-      const elapsed = this._totalTime - this._currentTime;
-      this._startTimestamp = Date.now() - elapsed * 1000;
-    }
-
-    this._emitWarningLevel();
+    if (this._isRunning) this._syncOrigin();
     eventBus.emit('timer:tick', this._tickData());
   }
 
   /**
-   * Adjust by ±N seconds (keyboard shortcut).
-   * Only allowed when NOT running.
+   * Adjust by ±N seconds (keyboard shortcut). Only allowed when NOT running.
    */
   adjustTime(delta) {
     if (this._isRunning) return;
 
     const newTime = this._currentTime + delta;
-    this._currentTime = Math.max(
-      MIN_NEGATIVE_TIME,
-      Math.min(this._totalTime, newTime),
-    );
-
-    if (this._isPaused && this._startTimestamp) {
-      const elapsed = this._totalTime - this._currentTime;
-      this._startTimestamp = Date.now() - elapsed * 1000;
-    }
-
+    this._currentTime = Math.max(MIN_NEGATIVE_TIME, Math.min(this._totalTime, newTime));
     eventBus.emit('timer:tick', this._tickData());
   }
 
   /* ── private helpers ──────────────────────────────────── */
 
-  _startInterval() {
-    this._clearInterval();
-    this._interval = setInterval(() => {
-      if (this._startTimestamp) {
-        const realElapsed = Math.floor(
-          (Date.now() - this._startTimestamp) / 1000,
-        );
-        this._currentTime = this._totalTime - realElapsed;
-      } else {
-        this._currentTime--;
-      }
-      this._emitWarningLevel();
-      eventBus.emit('timer:tick', this._tickData());
-    }, 1000);
+  /** Recompute the wall-clock origin so elapsed time matches currentTime. */
+  _syncOrigin() {
+    const elapsed = this._totalTime - this._currentTime;
+    this._startTimestamp = Date.now() - elapsed * 1000;
   }
 
-  _clearInterval() {
+  /** Read the wall clock; emit a tick only if the displayed second changed. */
+  _sample() {
+    const realElapsed = Math.floor((Date.now() - this._startTimestamp) / 1000);
+    const next = this._totalTime - realElapsed;
+    if (next === this._currentTime) return;
+    this._currentTime = next;
+    eventBus.emit('timer:tick', this._tickData());
+  }
+
+  _startSampling() {
+    this._stopSampling();
+    this._interval = setInterval(() => this._sample(), SAMPLE_INTERVAL_MS);
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this._onVisibilityChange);
+    }
+  }
+
+  _stopSampling() {
     if (this._interval) {
       clearInterval(this._interval);
       this._interval = null;
     }
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this._onVisibilityChange);
+    }
   }
 
   _stop() {
-    this._clearInterval();
+    this._stopSampling();
     this._isRunning = false;
     this._isPaused = false;
+    this._startTimestamp = null;
   }
 
   _tickData() {
@@ -174,25 +172,6 @@ export class Timer {
       isRunning: this._isRunning,
       isPaused: this._isPaused,
     };
-  }
-
-  _emitWarningLevel() {
-    const t = this._currentTime;
-    let level = null;
-    if (t <= TIMER_THRESHOLDS.dangerStart) {
-      level = 'danger';
-    } else if (
-      t <= TIMER_THRESHOLDS.warningStart &&
-      t >= TIMER_THRESHOLDS.warningEnd
-    ) {
-      level = 'warning';
-    }
-    if (level !== this._lastWarningLevel) {
-      this._lastWarningLevel = level;
-      if (level) {
-        eventBus.emit('timer:warning', { level });
-      }
-    }
   }
 }
 

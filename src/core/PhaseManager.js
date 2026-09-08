@@ -4,13 +4,14 @@ import timer from './Timer.js';
 /**
  * PhaseManager — manages the ordered list of debate phases,
  * the current index, and coordinates with Timer for durations.
+ *
+ * Navigation is refused while the timer is running.
  */
 export class PhaseManager {
   constructor() {
     /** @type {Array<{name: string, duration: number}>} */
     this._phases = [];
     this._currentIndex = 0;
-    this._debateEnded = false;
   }
 
   /* ── getters ──────────────────────────────────────────── */
@@ -31,91 +32,54 @@ export class PhaseManager {
     return this._phases.length;
   }
 
-  get debateEnded() {
-    return this._debateEnded;
-  }
-
   /* ── public API ───────────────────────────────────────── */
 
   /**
    * Replace the entire phase list (after format change / config apply).
-   * Resets to first phase.
+   * Resets to the first phase.
    */
   setPhases(phases) {
     this._phases = phases;
-    this._currentIndex = 0;
-    this._debateEnded = false;
-    this._loadCurrent();
-    eventBus.emit('phase:changed', this._phaseData());
+    this._goTo(0);
   }
 
   nextPhase() {
     if (timer.isRunning) return;
-
     if (this._currentIndex < this._phases.length - 1) {
-      this._currentIndex++;
-      this._debateEnded = false;
-      this._loadCurrent();
-      eventBus.emit('phase:changed', this._phaseData());
+      this._goTo(this._currentIndex + 1);
     }
-    // Last phase — do nothing; debate ends only via timer completion
   }
 
   previousPhase() {
     if (timer.isRunning) return;
-
-    if (this._debateEnded) {
-      this._debateEnded = false;
-      this._currentIndex = this._phases.length - 1;
-      this._loadCurrent();
-      eventBus.emit('phase:changed', this._phaseData());
-      return;
-    }
-
     if (this._currentIndex > 0) {
-      this._currentIndex--;
-      this._loadCurrent();
-      eventBus.emit('phase:changed', this._phaseData());
+      this._goTo(this._currentIndex - 1);
     }
   }
 
   jumpToPhase(index) {
     if (timer.isRunning) return;
     if (index < 0 || index >= this._phases.length) return;
-
-    this._currentIndex = index;
-    this._debateEnded = false;
-    this._loadCurrent();
-    eventBus.emit('phase:changed', this._phaseData());
+    this._goTo(index);
   }
 
   resetDebate() {
     timer.reset();
-    this._currentIndex = 0;
-    this._debateEnded = false;
-
-    if (this._phases.length > 0) {
-      timer.load(this._phases[0].duration);
-    }
     eventBus.emit('debate:reset', {});
-    eventBus.emit('phase:changed', this._phaseData());
+    this._goTo(0);
   }
 
   /* ── private helpers ──────────────────────────────────── */
 
-  _loadCurrent() {
-    if (this._phases.length === 0) return;
-    const phase = this._phases[this._currentIndex];
-    timer.load(phase.duration);
-  }
-
-  _phaseData() {
-    return {
+  _goTo(index) {
+    this._currentIndex = index;
+    const phase = this.currentPhase;
+    if (phase) timer.load(phase.duration);
+    eventBus.emit('phase:changed', {
       index: this._currentIndex,
-      phase: this.currentPhase,
+      phase,
       total: this._phases.length,
-      debateEnded: this._debateEnded,
-    };
+    });
   }
 }
 

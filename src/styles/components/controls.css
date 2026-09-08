@@ -86,3 +86,25 @@
   border-color: var(--text-secondary);
   color: var(--text-secondary);
 }
+
+/* Keyboard adjustment feedback (±Ns toast) */
+.keyboard-feedback {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(44, 62, 80, 0.9);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.keyboard-feedback.visible {
+  opacity: 1;
+}

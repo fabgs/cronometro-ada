@@ -24,13 +24,8 @@
     <div class="config-toggle">
       <button class="config-btn" id="config-btn">Configuración</button>
 
-      <!-- Selector de formato -->
-      <div class="format-selector-panel">
-        <button class="format-btn active" data-format="academico">
-          Formato Académico
-        </button>
-        <button class="format-btn" data-format="bp">British Parliament</button>
-      </div>
+      <!-- Selector de formato (botones generados por FormatSelector desde FormatRegistry) -->
+      <div class="format-selector-panel" role="group" aria-label="Formato de debate"></div>
     </div>
 
     <!-- Config Drawer (Izquierda) -->
@@ -43,162 +38,8 @@
         </button>
       </div>
       <div class="drawer-body">
-        <!-- Formato Académico -->
-        <details class="config-section" id="academico-config" open>
-          <summary class="section-header">
-            <span>Formato Académico</span>
-            <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </summary>
-          <div class="section-body">
-            <div class="field-group">
-              <label for="equipo1-name">Nombre Equipo 1</label>
-              <input type="text" id="equipo1-name" value="Equipo A" placeholder="Ej: Equipo A" />
-            </div>
-            <div class="field-group">
-              <label for="equipo2-name">Nombre Equipo 2</label>
-              <input type="text" id="equipo2-name" value="Equipo B" placeholder="Ej: Equipo B" />
-            </div>
-            <div class="field-group">
-              <label for="intro-time">Introducción (seg)</label>
-              <div class="stepper">
-                <button type="button" class="stepper-btn stepper-minus" data-target="intro-time" data-step="30">−</button>
-                <input type="number" id="intro-time" value="240" min="0" step="30" />
-                <button type="button" class="stepper-btn stepper-plus" data-target="intro-time" data-step="30">+</button>
-              </div>
-            </div>
-            <div class="field-group">
-              <label for="preguntas-time">Preguntas cruzadas (seg)</label>
-              <div class="stepper">
-                <button type="button" class="stepper-btn stepper-minus" data-target="preguntas-time" data-step="30">−</button>
-                <input type="number" id="preguntas-time" value="120" min="0" step="30" />
-                <button type="button" class="stepper-btn stepper-plus" data-target="preguntas-time" data-step="30">+</button>
-              </div>
-            </div>
-            <div class="field-group">
-              <label for="refutacion-time">Refutación (seg)</label>
-              <div class="stepper">
-                <button type="button" class="stepper-btn stepper-minus" data-target="refutacion-time" data-step="30">−</button>
-                <input type="number" id="refutacion-time" value="300" min="0" step="30" />
-                <button type="button" class="stepper-btn stepper-plus" data-target="refutacion-time" data-step="30">+</button>
-              </div>
-            </div>
-            <div class="field-group">
-              <label for="conclusion-time">Conclusión (seg)</label>
-              <div class="stepper">
-                <button type="button" class="stepper-btn stepper-minus" data-target="conclusion-time" data-step="30">−</button>
-                <input type="number" id="conclusion-time" value="180" min="0" step="30" />
-                <button type="button" class="stepper-btn stepper-plus" data-target="conclusion-time" data-step="30">+</button>
-              </div>
-            </div>
-            <div class="field-group">
-              <label for="num-refutaciones">Número de refutaciones</label>
-              <div class="stepper">
-                <button type="button" class="stepper-btn stepper-minus" data-target="num-refutaciones" data-step="1">−</button>
-                <input type="number" id="num-refutaciones" value="3" min="1" max="10" step="1" />
-                <button type="button" class="stepper-btn stepper-plus" data-target="num-refutaciones" data-step="1">+</button>
-              </div>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="ultima-refutacion-diferente" checked />
-              <span class="toggle-track"><span class="toggle-thumb"></span></span>
-              <span class="toggle-label">Tiempo diferente para última refutación</span>
-            </label>
-            <div class="field-group" id="ultima-refutacion-config">
-              <label for="ultima-refutacion-time">Última refutación (seg)</label>
-              <div class="stepper">
-                <button type="button" class="stepper-btn stepper-minus" data-target="ultima-refutacion-time" data-step="30">−</button>
-                <input type="number" id="ultima-refutacion-time" value="90" min="0" step="30" />
-                <button type="button" class="stepper-btn stepper-plus" data-target="ultima-refutacion-time" data-step="30">+</button>
-              </div>
-            </div>
-          </div>
-        </details>
-
-        <!-- British Parliament -->
-        <details class="config-section" id="bp-config">
-          <summary class="section-header">
-            <span>British Parliament</span>
-            <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </summary>
-          <div class="section-body">
-            <div class="field-group">
-              <label for="bp-speech-time">Duración discursos (seg)</label>
-              <div class="stepper">
-                <button type="button" class="stepper-btn stepper-minus" data-target="bp-speech-time" data-step="30">−</button>
-                <input type="number" id="bp-speech-time" value="420" min="0" step="30" />
-                <button type="button" class="stepper-btn stepper-plus" data-target="bp-speech-time" data-step="30">+</button>
-              </div>
-            </div>
-            <div class="field-group">
-              <label for="equipo-camara-alta-favor">Cámara Alta (a favor)</label>
-              <input type="text" id="equipo-camara-alta-favor" value="Equipo A" placeholder="Ej: Equipo A" />
-            </div>
-            <div class="field-group">
-              <label for="equipo-camara-alta-contra">Cámara Alta (en contra)</label>
-              <input type="text" id="equipo-camara-alta-contra" value="Equipo B" placeholder="Ej: Equipo B" />
-            </div>
-            <div class="field-group">
-              <label for="equipo-camara-baja-favor">Cámara Baja (a favor)</label>
-              <input type="text" id="equipo-camara-baja-favor" value="Equipo C" placeholder="Ej: Equipo C" />
-            </div>
-            <div class="field-group">
-              <label for="equipo-camara-baja-contra">Cámara Baja (en contra)</label>
-              <input type="text" id="equipo-camara-baja-contra" value="Equipo D" placeholder="Ej: Equipo D" />
-            </div>
-          </div>
-        </details>
-
-        <!-- Fases Adicionales -->
-        <details class="config-section" id="fases-adicionales-config">
-          <summary class="section-header">
-            <span>Fases Adicionales</span>
-            <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </summary>
-          <div class="section-body">
-            <div class="field-group">
-              <label for="deliberacion-time">Deliberación (seg)</label>
-              <div class="stepper">
-                <button type="button" class="stepper-btn stepper-minus" data-target="deliberacion-time" data-step="60">−</button>
-                <input type="number" id="deliberacion-time" value="600" min="0" step="60" />
-                <button type="button" class="stepper-btn stepper-plus" data-target="deliberacion-time" data-step="60">+</button>
-              </div>
-            </div>
-            <div class="field-group">
-              <label for="deliberacion-desc">Descripción Deliberación</label>
-              <input type="text" id="deliberacion-desc" value="Deliberación de jueces" placeholder="Ej: Deliberación de jueces" />
-            </div>
-            <div class="field-group">
-              <label for="feedback-time">Feedback (seg)</label>
-              <div class="stepper">
-                <button type="button" class="stepper-btn stepper-minus" data-target="feedback-time" data-step="60">−</button>
-                <input type="number" id="feedback-time" value="900" min="0" step="60" />
-                <button type="button" class="stepper-btn stepper-plus" data-target="feedback-time" data-step="60">+</button>
-              </div>
-            </div>
-            <div class="field-group">
-              <label for="feedback-desc">Descripción Feedback</label>
-              <input type="text" id="feedback-desc" value="Feedback" placeholder="Ej: Feedback" />
-            </div>
-          </div>
-        </details>
-
-        <!-- Controles -->
-        <details class="config-section" id="controles-config">
-          <summary class="section-header">
-            <span>Controles</span>
-            <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </summary>
-          <div class="section-body">
-            <label class="toggle-switch">
-              <input type="checkbox" id="keyboard-controls-enabled" checked />
-              <span class="toggle-track"><span class="toggle-thumb"></span></span>
-              <span class="toggle-label">Activar controles de teclado</span>
-            </label>
-            <p class="field-hint">
-              Permite usar atajos de teclado para controlar el cronómetro (Espacio, flechas, etc.)
-            </p>
-          </div>
-        </details>
+        <!-- Secciones generadas por ConfigPanel a partir de configManager.sections() -->
+        <div id="config-sections"></div>
       </div>
       <div class="drawer-footer">
         <button class="btn btn-primary" id="apply-config-btn">
@@ -226,7 +67,9 @@
         <div class="progress-bar">
           <div class="progress-fill" id="progress-fill"></div>
         </div>
-      </div>      <div class="controls">
+      </div>
+
+      <div class="controls">
         <button class="control-btn start" id="start-pause-btn">Iniciar</button>
         <button class="control-btn reset" id="reset-btn">Resetear Fase</button>
         <button class="control-btn reset-debate" id="reset-debate-btn">

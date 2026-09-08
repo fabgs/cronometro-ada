@@ -89,10 +89,50 @@ The timer is synchronized against wall-clock timestamps rather than relying only
 src/
 |-- components/     # Timer, controls, phase list, configuration and theme UI
 |-- core/           # Timer engine, phase manager, configuration and event bus
-|-- formats/        # Academic and British Parliamentary phase generators
+|-- formats/        # Self-describing format modules + FormatRegistry
 |-- services/       # Browser storage, keyboard shortcuts and theme preference
 |-- styles/         # Design tokens, layout, component and responsive styles
 `-- main.js         # Application composition and event wiring
+tests/              # Vitest unit tests and a jsdom integration test
+```
+
+## Adding a Debate Format
+
+Formats are self-describing modules registered in `src/formats/FormatRegistry.js`. The configuration form, the format selector, the keyboard shortcut and the help panel are all generated from the registry, so adding a format never modifies existing components.
+
+1. Create `src/formats/MyFormat.js` exporting an object with this contract:
+
+```js
+export default {
+  id: 'myformat',            // config key and data-format id
+  label: 'My Format',        // shown in the selector and the help panel
+  shortcut: '3',             // optional keyboard shortcut (must be unique)
+  defaults: { speechTime: 300, teamA: 'Team A' },
+  fields: [                  // drives the generated configuration section
+    { key: 'speechTime', label: 'Speech (sec)', type: 'number', step: 30, min: 0 },
+    { key: 'teamA', label: 'Team A', type: 'text', placeholder: 'e.g. Team A' },
+    // type: 'checkbox' is also supported; `showWhen: '<checkboxKey>'` makes a field conditional
+  ],
+  generatePhases(cfg) {      // receives the coerced config for this format
+    return [{ name: `Opening (${cfg.teamA})`, duration: cfg.speechTime }];
+  },
+};
+```
+
+2. Register it at the bottom of `src/formats/FormatRegistry.js`:
+
+```js
+formatRegistry.register(MyFormat);
+```
+
+Deliberation and feedback phases are appended automatically after the format's own phases. Values are validated against `fields` when loading from `localStorage` and when applying the form, so `generatePhases` always receives numbers and booleans of the right type.
+
+## Quality Checks
+
+```bash
+npm run lint   # ESLint (flat config)
+npm test       # Vitest: unit tests + jsdom integration test
+npm run check  # both
 ```
 
 ## Keyboard Controls

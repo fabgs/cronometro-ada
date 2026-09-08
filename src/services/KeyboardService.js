@@ -1,11 +1,38 @@
 import eventBus from '../core/EventBus.js';
 import configManager from '../core/ConfigManager.js';
+import formatRegistry from '../formats/FormatRegistry.js';
+
+/**
+ * Static key → action table. Letter keys are matched case-insensitively.
+ * Format shortcuts are not listed here: they come from the FormatRegistry.
+ */
+export const KEY_ACTIONS = {
+  ' ': { action: 'toggleStartPause' },
+  ArrowLeft: { action: 'previousPhase' },
+  ArrowRight: { action: 'nextPhase' },
+  r: { action: 'resetPhase' },
+  d: { action: 'resetDebate' },
+  c: { action: 'toggleConfig' },
+  f: { action: 'togglePhases' },
+  h: { action: 'toggleHelp' },
+  t: { action: 'toggleDarkMode' },
+  ArrowUp: { action: 'adjustTime', delta: 10 },
+  ArrowDown: { action: 'adjustTime', delta: -10 },
+  '+': { action: 'adjustTime', delta: 30 },
+  '=': { action: 'adjustTime', delta: 30 },
+  '-': { action: 'adjustTime', delta: -30 },
+  ',': { action: 'adjustTime', delta: 1 },
+  '.': { action: 'adjustTime', delta: -1 },
+  Enter: { action: 'applyConfig' },
+  Escape: { action: 'closePanels' },
+};
 
 /**
  * KeyboardService — centralised keyboard shortcut handler.
  *
- * Emits `keyboard:action` for each recognised shortcut.
- * Guards: input focus, modifier keys, global enable flag from ConfigManager.
+ * Emits `keyboard:action` with `{ action, ...payload, key }` for each
+ * recognised shortcut. Guards: input focus, modifier keys, and the global
+ * enable flag from ConfigManager.
  */
 export class KeyboardService {
   constructor() {
@@ -27,65 +54,41 @@ export class KeyboardService {
     document.removeEventListener('keydown', this._boundKeydown);
   }
 
+  /**
+   * Resolve a key to an action payload, or null.
+   * @param {string} key - KeyboardEvent.key
+   */
+  resolve(key) {
+    const direct = KEY_ACTIONS[key] ?? KEY_ACTIONS[key.toLowerCase()];
+    if (direct) return direct;
+    const fmt = formatRegistry.byShortcut(key);
+    if (fmt) return { action: 'selectFormat', format: fmt.id };
+    return null;
+  }
+
   /* ── private ──────────────────────────────────────────── */
 
+  _isEditable(el) {
+    return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+  }
+
   _onFocusIn(e) {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-      this._isInputFocused = true;
-    }
+    if (this._isEditable(e.target)) this._isInputFocused = true;
   }
 
   _onFocusOut(e) {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-      this._isInputFocused = false;
-    }
+    if (this._isEditable(e.target)) this._isInputFocused = false;
   }
 
   _onKeydown(e) {
     if (!configManager.isKeyboardEnabled()) return;
     if (this._isInputFocused || e.ctrlKey || e.altKey || e.metaKey) return;
 
-    const HANDLED = [
-      ' ', 'ArrowLeft', 'ArrowRight', 'r', 'R', 'd', 'D',
-      'c', 'C', 'f', 'F', '1', '2', 'h', 'H', 't', 'T',
-      'ArrowUp', 'ArrowDown', '+', '=', '-', ',', '.', 'Enter', 'Escape',
-    ];
+    const payload = this.resolve(e.key);
+    if (!payload) return;
 
-    if (HANDLED.includes(e.key)) e.preventDefault();
-
-    const action = this._mapKey(e.key);
-    if (action) {
-      eventBus.emit('keyboard:action', { action, key: e.key });
-    }
-  }
-
-  /**
-   * Map a key to an action string.
-   * @returns {string|null}
-   */
-  _mapKey(key) {
-    switch (key) {
-      case ' ': return 'toggleStartPause';
-      case 'ArrowLeft': return 'previousPhase';
-      case 'ArrowRight': return 'nextPhase';
-      case 'r': case 'R': return 'resetPhase';
-      case 'd': case 'D': return 'resetDebate';
-      case 'c': case 'C': return 'toggleConfig';
-      case 'f': case 'F': return 'togglePhases';
-      case '1': return 'formatAcademico';
-      case '2': return 'formatBP';
-      case 'h': case 'H': return 'toggleHelp';
-      case 't': case 'T': return 'toggleDarkMode';
-      case 'ArrowUp': return 'adjustTime+10';
-      case 'ArrowDown': return 'adjustTime-10';
-      case '+': case '=': return 'adjustTime+30';
-      case '-': return 'adjustTime-30';
-      case ',': return 'adjustTime+1';
-      case '.': return 'adjustTime-1';
-      case 'Enter': return 'applyConfig';
-      case 'Escape': return 'closePanels';
-      default: return null;
-    }
+    e.preventDefault();
+    eventBus.emit('keyboard:action', { ...payload, key: e.key });
   }
 }
 
