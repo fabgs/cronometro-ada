@@ -36,7 +36,7 @@ export class PhaseList extends Drawer {
     super.mount();
     this._listEl = document.querySelector('#phases-list');
 
-    for (const ev of ['phase:changed', 'timer:start', 'timer:pause', 'timer:reset', 'debate:reset']) {
+    for (const ev of ['phase:changed', 'timer:start', 'timer:pause', 'timer:resume', 'timer:reset', 'debate:reset']) {
       this.listen(ev, () => this._rebuild());
     }
 

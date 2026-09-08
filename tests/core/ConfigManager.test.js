@@ -26,7 +26,7 @@ describe('ConfigManager', () => {
   it('exposes one section per format plus the common ones', () => {
     const cm = new ConfigManager();
     const ids = cm.sections().map((s) => s.id);
-    expect(ids).toEqual(['academico-config', 'bp-config', 'fases-adicionales', 'controles']);
+    expect(ids).toEqual(['academico-config', 'bp-config', 'fases-adicionales-config', 'controles-config']);
   });
 
   it('loads a legacy config with string values and coerces them', () => {

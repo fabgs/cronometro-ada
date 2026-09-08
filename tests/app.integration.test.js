@@ -50,7 +50,7 @@ describe('App (integration)', () => {
 
   it('renders a config section per format plus the common ones', () => {
     const ids = [...document.querySelectorAll('#config-sections details')].map((d) => d.id);
-    expect(ids).toEqual(['academico-config', 'bp-config', 'fases-adicionales', 'controles']);
+    expect(ids).toEqual(['academico-config', 'bp-config', 'fases-adicionales-config', 'controles-config']);
     const academicInputs = document.querySelectorAll('#academico-config [data-path]');
     expect(academicInputs).toHaveLength(formatRegistry.get('academico').fields.length);
   });

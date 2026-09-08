@@ -18,7 +18,7 @@ import { toInt } from './time.js';
 
 export const COMMON_SECTIONS = [
   {
-    id: 'fases-adicionales',
+    id: 'fases-adicionales-config',
     label: 'Fases Adicionales',
     fields: [
       { group: 'deliberacion', key: 'time', label: 'Deliberación (seg)', type: 'number', step: 60, min: 0 },
@@ -28,7 +28,7 @@ export const COMMON_SECTIONS = [
     ],
   },
   {
-    id: 'controles',
+    id: 'controles-config',
     label: 'Controles',
     fields: [
       {
