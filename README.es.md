@@ -55,20 +55,20 @@ La duración predeterminada de cada discurso es de 7 minutos. Se pueden configur
 
 ## Arquitectura
 
-La aplicación utiliza módulos JavaScript sin framework. Los componentes de interfaz se comunican mediante un pequeño bus de eventos, manteniendo separados el motor del cronómetro, la generación de fases, el almacenamiento en el navegador y la actualización del DOM.
+La aplicación utiliza módulos JavaScript sin framework. Los componentes de interfaz se comunican mediante un pequeño bus de eventos, manteniendo separados el motor del cronómetro, la generación de fases, el almacenamiento en el navegador y la actualización del DOM. Los formatos de debate son módulos autodescriptivos registrados en un `FormatRegistry`; el formulario de configuración, el selector de formato, los atajos de teclado y el panel de ayuda se generan a partir de él (ver [Añadir un Formato de Debate](#añadir-un-formato-de-debate)).
 
 ```mermaid
 flowchart LR
     Input[Botones, teclado,<br/>ratón y táctil] --> Components[Componentes de interfaz]
     Components <--> Bus[EventBus]
     Bus <--> Core[Timer, PhaseManager<br/>y ConfigManager]
-    Core --> Formats[Generadores de fases<br/>Académico y BP]
+    Core --> Formats[FormatRegistry:<br/>módulos de formato autodescriptivos]
     Core <--> Services[Servicios de almacenamiento,<br/>teclado y tema]
     Components --> View[Cronómetro proyectado,<br/>progreso y fases]
     Services <--> LocalStorage[(localStorage del navegador)]
 ```
 
-El cronómetro se sincroniza con marcas de tiempo del reloj real en lugar de depender únicamente de los intervalos. Esto reduce la desviación cuando el navegador está ocupado o reduce la prioridad de la pestaña.
+El cronómetro se sincroniza con marcas de tiempo del reloj real en lugar de contar intervalos, así que nunca se desvía cuando el navegador está ocupado o reduce la prioridad de la pestaña. El reloj se muestrea cada 200 ms y solo se emite un tick cuando cambia el segundo mostrado, de modo que un callback retrasado en una máquina lenta sigue mostrando todos los segundos en lugar de saltarse uno.
 
 ## Tecnologías
 
@@ -77,6 +77,8 @@ El cronómetro se sincroniza con marcas de tiempo del reloj real en lugar de dep
 | Aplicación | JavaScript Vanilla, módulos ES, HTML5 |
 | Estilos | CSS modular, propiedades personalizadas y breakpoints responsive |
 | Build | Vite 7 |
+| Tests | Vitest 5 con jsdom (unitarios + integración) |
+| Linting | ESLint 10 (flat config) |
 | Persistencia | `localStorage` del navegador |
 | Hosting | Vercel |
 | Despliegue CI | Workflow de GitHub Actions para GitHub Pages |

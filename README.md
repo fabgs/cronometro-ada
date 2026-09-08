@@ -57,20 +57,20 @@ Speech duration defaults to 7 minutes. Team names are configurable for the openi
 
 ## Architecture
 
-The application uses framework-free JavaScript modules. UI components communicate through a small event bus, keeping the timer engine, phase generation, browser storage, and DOM rendering independent.
+The application uses framework-free JavaScript modules. UI components communicate through a small event bus, keeping the timer engine, phase generation, browser storage, and DOM rendering independent. Debate formats are self-describing modules held in a `FormatRegistry`; the configuration form, format selector, keyboard shortcuts and help panel are generated from it (see [Adding a Debate Format](#adding-a-debate-format)).
 
 ```mermaid
 flowchart LR
   Input[Buttons, keyboard,<br/>mouse and touch] --> Components[UI components]
   Components <--> Bus[EventBus]
   Bus <--> Core[Timer, PhaseManager<br/>and ConfigManager]
-  Core --> Formats[Academic and BP<br/>phase generators]
+  Core --> Formats[FormatRegistry:<br/>self-describing format modules]
   Core <--> Services[Storage, keyboard<br/>and theme services]
   Components --> View[Projected timer,<br/>progress and phase list]
   Services <--> LocalStorage[(Browser localStorage)]
 ```
 
-The timer is synchronized against wall-clock timestamps rather than relying only on interval ticks. This reduces drift when the browser is busy or deprioritizes the tab.
+The timer is synchronized against wall-clock timestamps rather than counting interval ticks, so it never drifts when the browser is busy or deprioritizes the tab. The clock is sampled every 200 ms and a tick is emitted only when the displayed second changes, so a delayed callback on a slow machine still shows every second instead of skipping one.
 
 ## Technology Stack
 
@@ -79,6 +79,8 @@ The timer is synchronized against wall-clock timestamps rather than relying only
 | Application | Vanilla JavaScript, ES modules, HTML5 |
 | Styling | Modular CSS, custom properties, responsive breakpoints |
 | Build tooling | Vite 7 |
+| Testing | Vitest 5 with jsdom (unit + integration) |
+| Linting | ESLint 10 (flat config) |
 | Persistence | Browser `localStorage` |
 | Hosting | Vercel |
 | CI deployment | GitHub Actions workflow for GitHub Pages |
