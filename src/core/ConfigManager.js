@@ -16,6 +16,9 @@ import {
   defaultKeyboardEnabled,
 } from './defaults.js';
 
+/** Deep copy for plain JSON data (no structuredClone: keeps older browsers booting). */
+const deepClone = (value) => JSON.parse(JSON.stringify(value));
+
 /**
  * ConfigManager — reads, validates and persists the debate configuration.
  *
@@ -37,7 +40,7 @@ import {
 export class ConfigManager {
   constructor() {
     this._defaults = this._buildDefaults();
-    this._config = structuredClone(this._defaults);
+    this._config = deepClone(this._defaults);
   }
 
   /* ── public getters ─────────────────────────────────── */
@@ -47,7 +50,7 @@ export class ConfigManager {
   }
 
   getAll() {
-    return structuredClone(this._config);
+    return deepClone(this._config);
   }
 
   /** Config block for a format id, or null if unknown. */
@@ -117,7 +120,7 @@ export class ConfigManager {
   }
 
   reset() {
-    this._config = structuredClone(this._defaults);
+    this._config = deepClone(this._defaults);
     storageService.remove(STORAGE_KEYS.config);
     eventBus.emit('config:reset', {});
   }
@@ -128,7 +131,7 @@ export class ConfigManager {
     const cfg = {
       currentFormat: DEFAULT_FORMAT,
       keyboardControlsEnabled: defaultKeyboardEnabled(),
-      ...structuredClone(COMMON_DEFAULTS),
+      ...deepClone(COMMON_DEFAULTS),
     };
     for (const fmt of formatRegistry.list()) {
       cfg[fmt.id] = { ...fmt.defaults };

@@ -58,8 +58,10 @@ export class ConfigPanel extends Drawer {
     });
   }
 
+  /** Unsaved edits survive close/reopen (as in the original UI); only the
+   *  <details> state is re-synced. Inputs are refreshed on config:applied /
+   *  config:reset, which are the only moments the saved config changes. */
   onOpen() {
-    this._populate();
     this._syncDetailsState();
   }
 

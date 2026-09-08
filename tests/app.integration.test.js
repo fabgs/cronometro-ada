@@ -116,6 +116,20 @@ describe('App (integration)', () => {
     expect(document.querySelector('#config-panel').classList.contains('open')).toBe(false);
   });
 
+  it('keeps unsaved edits when the drawer is closed and reopened', () => {
+    document.querySelector('#config-btn').click();
+    const input = document.querySelector('#cfg-academico-introTime');
+    const savedValue = input.value;
+    input.value = '999';
+    press('Escape');
+    expect(document.querySelector('#config-panel').classList.contains('open')).toBe(false);
+    document.querySelector('#config-btn').click();
+    expect(input.value).toBe('999');
+    expect(saved().academico.introTime).not.toBe(999); // not persisted until apply
+    input.value = savedValue;
+    document.querySelector('#config-close').click();
+  });
+
   it('hides conditional fields when their checkbox is off', () => {
     const toggle = document.querySelector('#cfg-academico-ultimaRefutacionDiferente');
     const dependent = document.querySelector('[data-show-when="cfg-academico-ultimaRefutacionDiferente"]');
