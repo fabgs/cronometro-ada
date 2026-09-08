@@ -45,6 +45,7 @@ export const COMMON_SECTIONS = [
 export function formatSection(format) {
   return {
     id: `${format.id}-config`,
+    formatId: format.id,
     label: format.label,
     fields: format.fields.map((f) => ({ ...f, group: format.id })),
   };

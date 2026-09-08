@@ -2,11 +2,20 @@ import eventBus from './EventBus.js';
 import { MIN_NEGATIVE_TIME } from './defaults.js';
 
 /**
+ * How often the wall clock is sampled while running. The displayed second
+ * only changes when the integer value changes, so sampling several times per
+ * second means a delayed callback (busy main thread, GC pause) still catches
+ * every second instead of jumping e.g. from 40 to 38.
+ */
+export const SAMPLE_INTERVAL_MS = 200;
+
+/**
  * Timer — core countdown engine with wall-clock sync.
  * Does NOT touch the DOM; communicates exclusively via EventBus.
  *
  * Events: timer:tick {currentTime, totalTime, isRunning, isPaused},
  *         timer:start, timer:pause, timer:resume, timer:reset.
+ * `timer:tick` is emitted once per second change (plus on load/reset/seek).
  * Warning levels are derived by consumers from `currentTime`
  * (see core/time.js → getWarningLevel).
  */
@@ -18,6 +27,12 @@ export class Timer {
     this._isPaused = false;
     this._interval = null;
     this._startTimestamp = null;
+    // Re-sample immediately when the tab becomes visible again: browsers
+    // throttle timers in background tabs, so the first visible frame would
+    // otherwise show a stale value for up to one sample interval.
+    this._onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && this._isRunning) this._sample();
+    };
   }
 
   /* ── getters ──────────────────────────────────────────── */
@@ -61,7 +76,7 @@ export class Timer {
     }
 
     this._syncOrigin();
-    this._startInterval();
+    this._startSampling();
     eventBus.emit('timer:start', {});
   }
 
@@ -70,13 +85,13 @@ export class Timer {
     if (this._isRunning && !this._isPaused) {
       this._isPaused = true;
       this._isRunning = false;
-      this._clearInterval();
+      this._stopSampling();
       eventBus.emit('timer:pause', {});
     } else if (this._isPaused) {
       this._isPaused = false;
       this._isRunning = true;
       this._syncOrigin();
-      this._startInterval();
+      this._startSampling();
       eventBus.emit('timer:resume', {});
     }
   }
@@ -116,24 +131,35 @@ export class Timer {
     this._startTimestamp = Date.now() - elapsed * 1000;
   }
 
-  _startInterval() {
-    this._clearInterval();
-    this._interval = setInterval(() => {
-      const realElapsed = Math.floor((Date.now() - this._startTimestamp) / 1000);
-      this._currentTime = this._totalTime - realElapsed;
-      eventBus.emit('timer:tick', this._tickData());
-    }, 1000);
+  /** Read the wall clock; emit a tick only if the displayed second changed. */
+  _sample() {
+    const realElapsed = Math.floor((Date.now() - this._startTimestamp) / 1000);
+    const next = this._totalTime - realElapsed;
+    if (next === this._currentTime) return;
+    this._currentTime = next;
+    eventBus.emit('timer:tick', this._tickData());
   }
 
-  _clearInterval() {
+  _startSampling() {
+    this._stopSampling();
+    this._interval = setInterval(() => this._sample(), SAMPLE_INTERVAL_MS);
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this._onVisibilityChange);
+    }
+  }
+
+  _stopSampling() {
     if (this._interval) {
       clearInterval(this._interval);
       this._interval = null;
     }
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this._onVisibilityChange);
+    }
   }
 
   _stop() {
-    this._clearInterval();
+    this._stopSampling();
     this._isRunning = false;
     this._isPaused = false;
     this._startTimestamp = null;

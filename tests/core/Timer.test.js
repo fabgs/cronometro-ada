@@ -33,6 +33,38 @@ describe('Timer', () => {
     expect(timer.isRunning).toBe(true);
   });
 
+  it('emits exactly one tick per second change, never duplicates', () => {
+    const seen = [];
+    eventBus.on('timer:tick', ({ currentTime }) => seen.push(currentTime));
+    timer.load(10);
+    timer.start();
+    vi.advanceTimersByTime(3000); // 15 samples at 200 ms
+    expect(seen).toEqual([10, 9, 8, 7]);
+  });
+
+  it('still shows every second when a callback is delayed (main thread busy)', () => {
+    const seen = [];
+    eventBus.on('timer:tick', ({ currentTime }) => seen.push(currentTime));
+    timer.load(40);
+    timer.start();
+    // Simulate ~900 ms of blocked main thread: the clock advances but no
+    // sampling callback ran. The next sample must still show 39, not skip it.
+    vi.setSystemTime(Date.now() + 900);
+    vi.advanceTimersByTime(200);
+    expect(seen.at(-1)).toBe(39);
+    vi.advanceTimersByTime(1000);
+    expect(seen).toEqual([40, 39, 38]);
+  });
+
+  it('re-samples immediately when the tab becomes visible', () => {
+    timer.load(30);
+    timer.start();
+    vi.setSystemTime(Date.now() + 5000); // background-throttled: no callbacks ran
+    expect(timer.currentTime).toBe(30);
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(timer.currentTime).toBe(25);
+  });
+
   it('keeps counting into overtime instead of stopping', () => {
     timer.load(2);
     timer.start();

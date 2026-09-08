@@ -82,6 +82,28 @@ describe('App (integration)', () => {
     expect(saved().currentFormat).toBe('academico');
   });
 
+  it('opens the config drawer with only the active format section expanded', () => {
+    press('2'); // active format: bp
+    document.querySelector('#config-btn').click();
+    const open = [...document.querySelectorAll('#config-sections details')].filter((d) => d.open).map((d) => d.id);
+    expect(open).toEqual(['bp-config']);
+    document.querySelector('#config-close').click();
+
+    press('1'); // active format: academico
+    document.querySelector('#config-btn').click();
+    const open2 = [...document.querySelectorAll('#config-sections details')].filter((d) => d.open).map((d) => d.id);
+    expect(open2).toEqual(['academico-config']);
+    document.querySelector('#config-close').click();
+  });
+
+  it('expands the section of a format selected while the drawer is open', () => {
+    document.querySelector('#config-btn').click();
+    press('2');
+    expect(document.querySelector('#bp-config').open).toBe(true);
+    press('1');
+    document.querySelector('#config-close').click();
+  });
+
   it('applies the form and regenerates the phases', () => {
     document.querySelector('#config-btn').click();
     expect(document.querySelector('#config-panel').classList.contains('open')).toBe(true);
