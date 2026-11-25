@@ -201,3 +201,7 @@ El repositorio también incluye un workflow de GitHub Actions que construye la a
 ## Contexto
 
 Este es un proyecto personal desarrollado para la [Asociación de Debate de Alicante](https://www.instagram.com/debatealicante/). Traduce necesidades reales de una sala de debate en una herramienta específica para participantes, jueces y organización de eventos.
+
+## Licencia
+
+El código se publica con la [licencia MIT](LICENSE). El nombre y el logo de la ADA pertenecen a la Asociación de Debate de Alicante y no entran en ella; consulta [NOTICE](NOTICE).
