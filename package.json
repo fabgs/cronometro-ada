@@ -23,7 +23,7 @@
     "ada",
     "alicante"
   ],
-  "author": "Asociación de Debate de Alicante (ADA)",
+  "author": "Fabián Godoy Silvestre (https://fabgs.dev)",
   "license": "MIT",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
