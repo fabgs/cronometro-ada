@@ -14,12 +14,12 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+# Two jobs, as in GitHub's Pages template: deploy-pages only finds the
+# artifact once the job that uploaded it has finished. Deploying from the
+# same job fails with "No artifacts named github-pages were found".
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -36,5 +36,12 @@ jobs:
         with:
           path: dist
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
